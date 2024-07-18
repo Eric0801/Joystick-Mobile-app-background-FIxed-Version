@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <title>Joystick remote control (background movable)</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%; /* height 必須是100%*/
+            background: linear-gradient(0deg, hsla(27, 82%, 64%, 0.9), 30%, #efef74, white);
+            background-size: cover;
+            background-repeat: no-repeat;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        #image-frame {
+            top: 0;
+            left: 0;
+            display: flex;
+            position: relative;
+            width: 90%;
+            height: 150px;
+            margin-inline-start: 20px;
+            border-width: 50px;
+            border-style: solid whitesmoke;
+            border-color: linear-gradient(whitesmoke, transparent);
+            background-size: contain;
+            background-repeat:no-repeat;
+            margin: auto;
+            margin-top: 48%;
+            overflow: hidden;
+            justify-content: center;
+            align-content: flex-start;
+        }
+
+        #backgroundImg {
+            top: 0;
+            left: 0;
+            position: absolute;
+            width: 100%;
+            height: 150px;
+            background-size: contain;
+            background-repeat: no-repeat;
+
+        }
+
+        #characterImage {
+            position: absolute;
+            /*anchor center*/
+            transform: translate(-50%, -50%);
+            /*===========================*/
+            top: 50%;
+            left: 50%;
+            width: 25px;
+            height: 25px;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="image-frame">
+        <img id="backgroundImg" src="park.jpg">
+        <img id="characterImage" src="cat.png">
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        var socket = io.connect('http://192.168.1.119:3000'); // Replace with your server IP
+
+        var data = {
+            xPosition: 0,
+            yPosition: 0,
+            x: 0,
+            y: 0,
+            cardinalDirection: "C",
+            containerId: ""
+        };
+
+        var isDragging = false;
+        var lastJoystickData = null;
+
+        function moveCharacterImage(data) {
+            var characterImg = document.getElementById('characterImage');
+            var backgroundImg = document.getElementById('backgroundImg');
+
+            var maxMoveX = 4; // X-axis maximum movement speed factor
+            var maxMoveY = 4; // Y-axis maximum movement speed factor
+            var backgroundSpeedFactor = 1; // Background scrolling speed factor, the smaller the value, the slower the scroll
+
+            var speedX = Math.abs(data.x) / 100 * maxMoveX;
+            var speedY = Math.abs(data.y) / 100 * maxMoveY;
+            var directionX = data.x >= 0 ? 1 : -1;
+            var directionY = data.y >= 0 ? 1 : -1;
+            var offsetX = directionX * speedX;
+            var offsetY = directionY * speedY;
+
+            var container = document.getElementById('image-frame');
+            var containerRect = container.getBoundingClientRect();
+            var backgroundOffsetX = parseFloat(backgroundImg.style.left) || 0;
+            var backgroundOffsetY = parseFloat(backgroundImg.style.top) || 0;
+            var newBackgroundOffsetX = backgroundOffsetX;
+            var newBackgroundOffsetY = backgroundOffsetY;
+            var backgroundReachedLimitX = false;
+            var backgroundReachedLimitY = false;
+
+            // Check if image is centered on screen
+            var characterCenterThresholdX = containerRect.width / 2;
+            var characterCenterThresholdY = containerRect.height / 2;
+            var characterInCenterX = Math.abs(parseFloat(characterImg.offsetLeft) - characterCenterThresholdX) < maxMoveX;
+
+            if (characterInCenterX) {
+                // Move background
+                newBackgroundOffsetX -= offsetX * backgroundSpeedFactor;
+                newBackgroundOffsetY -= offsetY * backgroundSpeedFactor;
+                var backgroundImgWidth = backgroundImg.clientWidth;
+                var backgroundImgHeight = backgroundImg.clientHeight;
+                var maxScrollX = backgroundImgWidth - containerRect.width;
+                var maxScrollY = backgroundImgHeight - containerRect.height;
+
+                console.log(containerRect.width);
+                if (newBackgroundOffsetX < -maxScrollX) {
+                    newBackgroundOffsetX = -maxScrollX;
+                    backgroundReachedLimitX = true;
+                }
+                if (newBackgroundOffsetX > 0) {
+                    newBackgroundOffsetX = 0;
+                    backgroundReachedLimitX = true;
+                }
+
+                if (newBackgroundOffsetY < -maxScrollY) {
+                    newBackgroundOffsetY = -maxScrollY;
+                    backgroundReachedLimitY = true;
+                }
+                if (newBackgroundOffsetY > 0) {
+                    newBackgroundOffsetY = 0;
+                    backgroundReachedLimitY = true;
+                }
+
+                backgroundImg.style.left = `${newBackgroundOffsetX}px`;
+                backgroundImg.style.top = `${newBackgroundOffsetY}px`;
+
+                // When the background reaches the edge, the character moves to the center
+                if (backgroundReachedLimitX || backgroundReachedLimitY) {
+                    var currentImgLeft = parseFloat(characterImg.offsetLeft) || 0;
+                    var currentImgTop = parseFloat(characterImg.offsetTop) || 0;
+                    var newImgLeft = currentImgLeft + offsetX;
+                    var newImgTop = currentImgTop - offsetY;
+
+                    if (newImgLeft < 0) {
+                        newImgLeft = 0;
+                    }
+                    if (newImgLeft > containerRect.width ) {
+                        newImgLeft = containerRect.width - characterImg.offsetWidth;
+                    }
+                    if (newImgTop < 0) {
+                        newImgTop = 0;
+                    }
+                    if (newImgTop > containerRect.height ) {
+                        newImgTop = containerRect.height - characterImg.offsetHeight;
+                    }
+
+                    characterImg.style.left = `${newImgLeft}px`;
+                    characterImg.style.top = `${newImgTop}px`;
+                }
+            } else {
+                // Move the character to the center
+                var currentImgLeft = parseFloat(characterImg.style.left) || 0;
+                var currentImgTop = parseFloat(characterImg.style.top) || 0;
+                var newImgLeft = currentImgLeft + offsetX;
+                var newImgTop = currentImgTop - offsetY;
+
+                // Limit the character movement within the container
+                if (newImgLeft < 0) {
+                    newImgLeft = 0;
+                }
+                if (newImgLeft > containerRect.width ) {
+                    newImgLeft = containerRect.width;
+                }
+                if (newImgTop < 0) {
+                    newImgTop = 0;
+                }
+                if (newImgTop > containerRect.height) {
+                    newImgTop = containerRect.height ;
+                }
+
+                // When the character returns to the center, move the background
+                if (Math.abs(newImgLeft - characterCenterThresholdX) < maxMoveX && Math.abs(newImgTop - characterCenterThresholdY) < maxMoveY) {
+                    newImgLeft = characterCenterThresholdX;
+                    newImgTop = characterCenterThresholdY;
+                }
+
+                characterImg.style.left = `${newImgLeft}px`;
+                characterImg.style.top = `${newImgTop}px`;
+            }
+        }
+
+        function animationLoop() {
+            if (isDragging && lastJoystickData) {
+                moveCharacterImage(lastJoystickData);
+            }
+            requestAnimationFrame(animationLoop);
+        }
+
+        // Start the animation loop
+        animationLoop();
+
+        // Handle joystick data received from socket
+        socket.on('joystickMove', function (data) {
+            isDragging = true;
+            lastJoystickData = data;
+            console.log(lastJoystickData);
+        });
+
+        // Handle mouse release
+        document.addEventListener('mouseup', function () {
+            isDragging = false;
+        });
+
+        // Handle touch end (for touch devices)
+        document.addEventListener('touchend', function () {
+            isDragging = false;
+        });
+    </script>
+</body>
+
+</html>

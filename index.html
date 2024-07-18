@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <title>Joystick Control</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            background-color: #ffffff;
+            overflow: hidden;
+        }
+        #joyContainer {
+            position: absolute;
+            bottom: 10px;
+            width: 200px;
+            height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div id="joyContainer"></div>
+    <script src="http://192.168.1.119:3000/socket.io/socket.io.js"></script>
+    <script src="joy.js"></script>
+    <script>
+        var socket = io.connect('http://192.168.1.119:3000'); // Replace with your server IP
+
+        var Joy1 = new JoyStick('joyContainer', {}, function(stickData) {
+            console.log('joystick Data:', stickData);
+            socket.emit('joystickMove', stickData);
+        });
+    </script>
+</body>
+</html>
