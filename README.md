@@ -5,7 +5,7 @@
   ```bash
    node server.js
    ```
-as well as running the index.html by connecting to the server IP.
+ , as well as running index.html by connecting to the server IP.
 
 If errors occur in your terminal or the node server.js command is not runnable after execution, please try the following steps, 
 1. Verify your file path and ensure you access the correct directory.
